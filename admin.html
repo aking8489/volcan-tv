@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Volcan TV - لوحة الإدارة</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>
+body{font-family:system-ui,Tahoma,sans-serif;background:#12161b;color:#f1f3f5;margin:auto;padding:16px;max-width:900px}
+h1{color:#ff5a1f}input,select,button{padding:10px;border-radius:8px;border:1px solid #2a323c;background:#1d232b;color:#f1f3f5;font-size:14px}
+button{background:#ff5a1f;border:0;font-weight:700;cursor:pointer}button.s{background:#2a323c}
+.box{background:#1d232b;border:1px solid #2a323c;border-radius:12px;padding:14px;margin:12px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;border-bottom:1px solid #2a323c;text-align:right}
+.tabs button{background:#2a323c}.tabs button.on{background:#ff5a1f}.hide{display:none}.mono{direction:ltr;font-family:monospace}
+</style></head><body>
+<h1>🌋 Volcan TV — لوحة الإدارة</h1>
+<div id="login" class="box"><div class="row"><input id="u" placeholder="اسم المستخدم (أدمن)"><input id="p" type="password" placeholder="كلمة المرور"><button onclick="login()">دخول</button></div><div id="le" style="color:#f87171"></div></div>
+<div id="app" class="hide">
+<div class="tabs row"><button class="on" data-t="codes">الأكواد</button><button data-t="users">المستخدمون</button><button data-t="channels">القنوات</button><button class="s" onclick="sb.auth.signOut().then(()=>location.reload())">خروج</button></div>
+<div id="t-codes" class="box"><div class="row"><select id="cd"><option value="30">30 يومًا</option><option value="90">90 يومًا</option><option value="365">365 يومًا</option></select><input id="cn" type="number" value="10" min="1" max="200" style="width:80px"><button onclick="genCodes()">توليد أكواد</button></div><div id="codes"></div></div>
+<div id="t-users" class="box hide"><div id="users"></div></div>
+<div id="t-channels" class="box hide"><div class="row"><select id="ckind"><option value="live">مباشر</option><option value="movie">أفلام</option><option value="series">مسلسلات</option><option value="sports">Sports</option></select><input id="cname" placeholder="اسم القناة"><input id="ccat" placeholder="التصنيف"><input id="curl" class="mono" placeholder="رابط البث m3u8" style="flex:1"><input id="clogo" class="mono" placeholder="رابط الشعار (اختياري)"><button onclick="addCh()">إضافة</button></div><details class="box"><summary>استيراد قائمة M3U (لصق دفعة واحدة)</summary><textarea id="m3u" rows="6" class="mono" style="width:100%;margin:8px 0;padding:10px;border-radius:8px;border:1px solid #2a323c;background:#12161b;color:#f1f3f5" placeholder="#EXTM3U&#10;#EXTINF:-1 group-title=&quot;أخبار&quot;,اسم القناة&#10;https://.../stream.m3u8"></textarea><button onclick="impM3u()">استيراد</button></details><div id="chs"></div></div>
+</div>
+<script>
+// ===== ضع بيانات مشروعك هنا =====
+const URL_='https://oqqyjpxkmuijbrucszrz.supabase.co';
+let KEY='';try{KEY=localStorage.getItem('vk')||''}catch(e){}
+if(!KEY){KEY=(prompt('الصق المفتاح العام (Publishable key) مرة وحدة:')||'').trim();try{localStorage.setItem('vk',KEY)}catch(e){}}
+const sb=supabase.createClient(URL_,KEY);
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function login(){
+ const {error}=await sb.auth.signInWithPassword({email:$('u').value.trim().toLowerCase()+'@volcan.app',password:$('p').value});
+ if(error){$('le').textContent='بيانات غير صحيحة';return}init()}
+async function init(){
+ const {data:{user}}=await sb.auth.getUser();if(!user)return;
+ const {data:me}=await sb.from('profiles').select('is_admin').eq('id',user.id).single();
+ if(!me?.is_admin){$('le').textContent='هذا الحساب ليس أدمن';return}
+ $('login').classList.add('hide');$('app').classList.remove('hide');loadCodes();loadUsers();loadCh()}
+document.querySelectorAll('.tabs [data-t]').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.tabs [data-t]').forEach(x=>x.classList.toggle('on',x===b));
+ ['codes','users','channels'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t))});
+function rnd(){const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const r=crypto.getRandomValues(new Uint8Array(8));let s='';r.forEach(x=>s+=a[x%a.length]);return 'VOLCAN-'+s}
+async function genCodes(){const d=+$('cd').value,n=+$('cn').value;
+ const rows=Array.from({length:n},()=>({code:rnd(),days:d}));
+ const {error}=await sb.from('codes').insert(rows);if(error)return alert(error.message);loadCodes()}
+async function loadCodes(){const {data}=await sb.from('codes').select().order('created_at',{ascending:false}).limit(200);
+ $('codes').innerHTML='<table><tr><th>الكود</th><th>الأيام</th><th>الحالة</th><th></th></tr>'+(data||[]).map(c=>`<tr><td class="mono">${esc(c.code)}</td><td>${c.days}</td><td>${c.used_by?'مستخدم':'متاح'}</td><td>${c.used_by?'':`<button class="s" onclick="delCode('${esc(c.code)}')">حذف</button>`}</td></tr>`).join('')+'</table>'}
+async function delCode(c){await sb.from('codes').delete().eq('code',c);loadCodes()}
+async function loadUsers(){const {data}=await sb.from('profiles').select().order('created_at',{ascending:false});
+ $('users').innerHTML='<table><tr><th>المستخدم</th><th>ينتهي</th><th>الأجهزة</th><th>تمديد</th></tr>'+(data||[]).map(u=>`<tr><td>${esc(u.username)}${u.is_admin?' 👑':''}</td><td>${u.expires_at?new Date(u.expires_at).toLocaleDateString('ar'):'—'}</td><td>${u.max_devices} <button class="s" onclick="setDev('${u.id}',${u.max_devices})">تغيير</button> <button class="s" onclick="rstDev('${u.id}')">تصفير</button></td><td><button class="s" onclick="ext('${u.id}',30)">+30</button> <button class="s" onclick="ext('${u.id}',90)">+90</button> <button class="s" onclick="ext('${u.id}',365)">+365</button></td></tr>`).join('')+'</table>'}
+async function setDev(id,n){const v=prompt('الحد الأقصى للأجهزة:',n);if(!v)return;const {error}=await sb.from('profiles').update({max_devices:+v}).eq('id',id);if(error)alert(error.message);loadUsers()}
+async function rstDev(id){if(!confirm('حذف الأجهزة المسجلة لهذا المستخدم؟'))return;const {error}=await sb.rpc('admin_reset_devices',{p_user:id});if(error)alert(error.message);else alert('تم')}
+async function ext(id,d){const {error}=await sb.rpc('admin_extend',{p_user:id,p_days:d});if(error)alert(error.message);loadUsers()}
+async function addCh(){const r={name:$('cname').value.trim(),kind:$('ckind').value,category:$('ccat').value.trim()||'عام',stream_url:$('curl').value.trim(),logo_url:$('clogo').value.trim()||null};
+ if(!r.name||!r.stream_url)return;const {error}=await sb.from('channels').insert(r);if(error)return alert(error.message);
+ $('cname').value=$('ccat').value=$('curl').value=$('clogo').value='';loadCh()}
+async function loadCh(){const {data}=await sb.from('channels').select().order('id',{ascending:false});
+ $('chs').innerHTML='<table><tr><th>القناة</th><th>القسم</th><th>التصنيف</th><th></th></tr>'+(data||[]).map(c=>`<tr><td>${esc(c.name)}</td><td>${esc(c.kind)}</td><td>${esc(c.category)}</td><td><button class="s" onclick="delCh(${c.id})">حذف</button></td></tr>`).join('')+'</table>'}
+async function impM3u(){const L=$('m3u').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),rows=[];
+ for(let i=0;i<L.length;i++){if(!L[i].startsWith('#EXTINF'))continue;const u=L[i+1];if(!u||u.startsWith('#'))continue;
+  const g=(L[i].match(/group-title="([^"]*)"/)||[])[1]||'عام',n=L[i].split(',').slice(1).join(',').trim();
+  if(n&&/^https?:\/\//.test(u))rows.push({name:n,category:g,kind:$('ckind').value,stream_url:u})}
+ if(!rows.length)return alert('لم أجد قنوات صالحة في النص');
+ const {error}=await sb.from('channels').insert(rows);if(error)return alert(error.message);
+ $('m3u').value='';alert('تم استيراد '+rows.length+' قناة');loadCh()}
+async function delCh(id){await sb.from('channels').delete().eq('id',id);loadCh()}
+init();
+</script></body></html>

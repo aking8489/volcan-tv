@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Volcan TV - لوحة الإدارة</title>
+<script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <style>
 body{font-family:system-ui,Tahoma,sans-serif;background:#12161b;color:#f1f3f5;margin:auto;padding:16px;max-width:900px}
@@ -22,7 +23,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;borde
 <script>
 // ===== ضع بيانات مشروعك هنا =====
 const URL_='https://oqqyjpxkmuijbrucszrz.supabase.co';
-let KEY='';try{KEY=localStorage.getItem('vk')||''}catch(e){}
+let KEY=window.VK||'';try{KEY=KEY||localStorage.getItem('vk')||''}catch(e){}
 if(!KEY){KEY=(prompt('الصق المفتاح العام (Publishable key) مرة وحدة:')||'').trim();try{localStorage.setItem('vk',KEY)}catch(e){}}
 const sb=supabase.createClient(URL_,KEY);
 const $=i=>document.getElementById(i);

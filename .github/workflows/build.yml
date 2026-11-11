@@ -13,7 +13,7 @@ jobs:
       - uses: subosito/flutter-action@v2
       - name: Build
         run: |
-          unzip -q volcan_tv_v2.zip
+          unzip -q volcan_tv_v3.zip
           bash volcan/build.sh
         env:
           SB_URL: ${{ secrets.SB_URL }}

@@ -1,1 +1,1 @@
-window.VK='sb_publishable_lxvU2o_oAZilaZY47nXanQ_l4vP8vjS
+window.VK='sb_publishable_lxvU2o_oAZilaZY47nXanQ_l4vP8vjS';
